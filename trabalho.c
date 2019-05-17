@@ -15,8 +15,8 @@
 #define TRANSITION_TO_HEATHENS 3
 #define TRANSITION_TO_PRUDES 4
 
-pthread_t _tidPrudes[20];
-pthread_t _tidHeathens[20];
+pthread_t _tidPrudes[40];
+pthread_t _tidHeathens[40];
 int _heathensCounter = 0;
 int _prudesCounter = 0;
 int _status = NEUTRAL;
@@ -26,39 +26,47 @@ sem_t _prudesTurn;
 sem_t _heathenQueue;
 sem_t _prudesQueue;
 
-void sem_post_many(sem_t *semaforo, int many) {
-	while (many-- > 0)
-		sem_post(semaforo);
-}
+
+//Executem o ./script.sh pra fazer os testes
+//Erro no turn. se quando os dois são zero e ainda tem thread pra entrar
+//Se post nos dois turns, está dando erro dos dois entrarem pelo wait, portanto, assim que o mutex
+//estiver 1, o lado oposto avança independente da quantidade de cada lado.
+//COMO RESOLVER??!!!
 
 //Novas funções (Luid)
 //Mantive as antigas abaixo, porque não sei se isso está certo.
 void *heathens(){
   //lógica tomada: cada thread é uma "pessoa", ou seja, 
-  //quando a thread é chamada significa que uma pessoa chegou, logo, a incrementação independe se é a vez dele ou não
+  //quando a thread é chamada significa que uma pessoa chegou, 
+  //logo, a incrementação independe se é a vez dele ou não
+
+    //  printf("\n+1 HEATENS\n");
     _heathensCounter++;
-    printf("\nCHEGOU 1 HEATENS\n");
-    
+
     sem_wait(&_heathenTurn);
+    
     pthread_mutex_lock(&_mutex);
 
+
     _heathensCounter--;
-    printf("\nHEATHENS PASSANDO\nFaltam %d Prudes\t\te\t%d Heathens\n", _prudesCounter, _heathensCounter);
+    printf("HEATHENS PASSOU\nFaltam %d Prudes\t\te\t%d Heathens\n", _prudesCounter, _heathensCounter);
 
     if(_prudesCounter > _heathensCounter){
-        printf("\nMudando a vez para Prudes\n");
         sem_post(&_prudesTurn);
+        printf("[%d] > [%d] ", _prudesCounter, _heathensCounter);
+        printf("\n[Mais Prudes. Mudando a vez para Prudes]\n\n");
         // _status = PRUDES_RULE;
     } else {
         if(_heathensCounter){
-            sem_post(&_heathenTurn);
-        } else {
-            printf("Acabou os Heathens e também não tem mais Prudes.\n");
+          sem_post(&_heathenTurn);           
+        }else{
+           printf("\n[Acabou os Heathens.Mudando a vez para Prudes]\n\n");
             // _status = NEUTRAL;
-            // sem_post(&_heathenTurn);
+            //sem_post(&_heathenTurn);
             sem_post(&_prudesTurn);
         }
     }
+
 
     pthread_mutex_unlock(&_mutex);
     pthread_exit(0);
@@ -66,167 +74,43 @@ void *heathens(){
 }
 
 void *prudes(){
-    // sleep(1);
+    sleep(1);
     _prudesCounter++;
-    printf("\nCHEGOU 1 PRUDE\n");
-    
+    // printf("\n+1 PRUDE\n");
+
     sem_wait(&_prudesTurn);
+
     pthread_mutex_lock(&_mutex);
 
-    _prudesCounter--;
-    printf("\nPRUDES PASSANDO\nFaltam %d Prudes\t\te\t%d Heathens\n", _prudesCounter, _heathensCounter);
+    
+    // printf("PRUDES PASSANDO\nFaltam %d Prudes\t\te\t%d Heathens\n", _prudesCounter, _heathensCounter);
 
-    if(_heathensCounter > _prudesCounter){
-        printf("\nMudando a vez para Heathens\n");
+
+    _prudesCounter--;
+    printf("PRUDES PASSOU\nFaltam %d Prudes\t\te\t%d Heathens\n", _prudesCounter, _heathensCounter);
+    
+    
+    if(_heathensCounter > _prudesCounter){        
         sem_post(&_heathenTurn);
+        printf("[%d] > [%d] \n", _heathensCounter,_prudesCounter);
+        printf("\n[Mais Heathens. Mudando a vez para Heathens]\n\n");
         // _status = HEATHENS_RULE;
     } else{
         if(_prudesCounter){
-            sem_post(&_prudesTurn);
-        } else{
-            printf("Acabou os Prudes e também não tem mais Heathens.\n");
+           sem_post(&_prudesTurn);
+        }else{
+           printf("\n[Acabou os Prudes. Mudando a vez para Heathens]\n\n");
             // _status = NEUTRAL;
             sem_post(&_heathenTurn);
-            // sem_post(&_prudesTurn);
-            
-        }
+            //sem_post(&_prudesTurn);
+        } 
     }
+
+
     pthread_mutex_unlock(&_mutex);
     pthread_exit(0);
     
 
-}
-
-
-void *heathens_old()
-{ 
-  sem_wait(&_heathenTurn);
-  sem_post(&_heathenTurn);
-
-  pthread_mutex_lock(&_mutex);
-  printf("Passando pelo mutex do heathens\n");
-  _heathensCounter++;
-  printf("\nH STATUS: %d\n", _status);
-  printf("Quantidade de heathens = %d\tQuantidade de prudes = %d\n", _heathensCounter, _prudesCounter);
-  switch(_status){
-      case NEUTRAL:
-          _status = HEATHENS_RULE; 
-          pthread_mutex_unlock(&_mutex);
-        break;
-
-      case PRUDES_RULE:
-          if (_heathensCounter > _prudesCounter) {
-              _status = TRANSITION_TO_HEATHENS;
-              sem_wait(&_prudesTurn);
-          }
-          pthread_mutex_unlock(&_mutex);
-          sem_wait(&_heathenQueue);
-        break;
-
-      case TRANSITION_TO_HEATHENS:
-          printf("H: TRANSITION_TO_HEATHENS -> HEATHENS_RULE\n");
-          pthread_mutex_unlock(&_mutex);
-          // _status = HEATHENS_RULE;
-          sem_wait(&_heathenQueue);
-        break;
-      default:
-        // pthread_mutex_unlock(&_mutex);
-        printf("a");  
-  }
-  // sleep(1);
-  pthread_mutex_lock(&_mutex);
-  printf("\nHeathens passando\n");
-  printf("Quantidade de heathens = %d\tQuantidade de prudes = %d\n", _heathensCounter, _prudesCounter);
-  _heathensCounter--;
-
-  if (_heathensCounter == 0){
-    if (_status == TRANSITION_TO_PRUDES){
-      sem_post(&_prudesTurn);
-      int valorTurn;
-      sem_getvalue(&_heathenTurn, &valorTurn);
-      printf("H -- TRANSITION_TO_PRUDES; heathenTurn = %d", valorTurn);
-    }
-    if(_prudesCounter){
-      sem_post_many(&_prudesQueue, _prudesCounter);
-      _status = PRUDES_RULE;
-    }
-    else{
-      _status = NEUTRAL;
-    }
-  }
-
-  if (_status == HEATHENS_RULE){
-    if(_prudesCounter > _heathensCounter){
-      _status = TRANSITION_TO_PRUDES;
-      sem_wait(&_heathenTurn);
-    }
-  }
-  pthread_mutex_unlock(&_mutex);
-  pthread_exit(0);
-}
-
-
-void *prudes_old()
-{
-
-  sem_wait(&_prudesTurn);
-  sem_post(&_prudesTurn);
-
-  pthread_mutex_lock(&_mutex);
-  _prudesCounter++;
-  printf("\nP STATUS: %d\n", _status);
-  printf("Quantidade de heathens = %d\tQuantidade de prudes = %d\n", _heathensCounter, _prudesCounter);
-
-  switch(_status){
-      case NEUTRAL:
-          _status = PRUDES_RULE; 
-          pthread_mutex_unlock(&_mutex);
-        break;
-
-      case HEATHENS_RULE:
-          if (_prudesCounter > _heathensCounter ) {
-              _status = TRANSITION_TO_PRUDES;
-              sem_wait(&_heathenTurn);
-          }
-          pthread_mutex_unlock(&_mutex);
-          sem_wait(&_prudesQueue);
-        break;
-
-      case TRANSITION_TO_PRUDES:
-          pthread_mutex_unlock(&_mutex);
-          _status = PRUDES_RULE;
-          sem_wait(&_prudesQueue);
-        break;
-      default:
-        pthread_mutex_unlock(&_mutex);  
-  }
-  pthread_mutex_lock(&_mutex);
-  // sleep(1);
-  printf("\nPrudes passando\n");
-  printf("Quantidade de heathens = %d\tQuantidade de prudes = %d\n", _heathensCounter, _prudesCounter);
-  _prudesCounter--;
-
-  if (_prudesCounter == 0){
-    if (_status == TRANSITION_TO_HEATHENS){
-      sem_post(&_heathenTurn);
-    }
-    if(_heathensCounter){
-      sem_post_many(&_heathenQueue,_prudesCounter);
-      _status = HEATHENS_RULE;
-    }
-    else{
-      _status = NEUTRAL;
-    }
-  }
-
-  if (_status == PRUDES_RULE){
-    if(_heathensCounter > _prudesCounter){
-      _status = TRANSITION_TO_HEATHENS;
-      sem_wait(&_prudesTurn);
-    }
-  }
-  pthread_mutex_unlock(&_mutex);
-  pthread_exit(0);
 }
 
 int main()
@@ -263,12 +147,12 @@ int main()
   }
   
   printf("\n------------Inicio-------------\n");
-  for (int i = 0; i < 20; i++){
+  for (int i = 0; i < 40; i++){
     pthread_create(&_tidHeathens[i], NULL, &heathens, NULL);
     pthread_create(&_tidPrudes[i], NULL, &prudes, NULL);
   }
 
-  for (int j = 0; j < 20; j++){
+  for (int j = 0; j < 40; j++){
     pthread_join(_tidHeathens[j], NULL);
     pthread_join(_tidPrudes[j], NULL);
   }
