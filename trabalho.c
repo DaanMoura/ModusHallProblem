@@ -15,8 +15,6 @@
 #define TRANSITION_TO_HEATHENS 3
 #define TRANSITION_TO_PRUDES 4
 
-pthread_t _tidPrudes[40];
-pthread_t _tidHeathens[40];
 int _heathensCounter = 0;
 int _prudesCounter = 0;
 int _status = NEUTRAL;
@@ -116,6 +114,22 @@ void *prudes(){
 int main()
 {
   char err_msg[MAX];
+  int numeroDeHeathens;
+  int numeroDePrudes;
+  
+  pthread_t *_tidPrudes;
+  pthread_t *_tidHeathens;
+  
+  printf("Qual a quantidade Heathens? (no mínimo 1)\n");
+  scanf("%d", &numeroDeHeathens);
+  if(numeroDeHeathens < 1) numeroDeHeathens = 20;
+
+  printf("Qual a quantidade Prudes? (no mínimo 1)\n");
+  scanf("%d", &numeroDePrudes);
+  if(numeroDePrudes < 1) numeroDePrudes = 20;
+
+  _tidHeathens = (pthread_t *) malloc(numeroDeHeathens * sizeof(pthread_t));
+  _tidPrudes = (pthread_t *) malloc(numeroDePrudes * sizeof(pthread_t)); 
 
   //Heathens tem a preferencia em passar caso o ambiente seja neutro
   if (sem_init(&_heathenTurn, 0, 1) < 0)
@@ -147,14 +161,14 @@ int main()
   }
   
   printf("\n------------Inicio-------------\n");
-  for (int i = 0; i < 40; i++){
+  for (int i = 0; i < numeroDeHeathens; i++){
     pthread_create(&_tidHeathens[i], NULL, &heathens, NULL);
-    pthread_create(&_tidPrudes[i], NULL, &prudes, NULL);
+    if(i<numeroDePrudes) pthread_create(&_tidPrudes[i], NULL, &prudes, NULL);
   }
-
-  for (int j = 0; j < 40; j++){
+ 
+  for (int j = 0; j < numeroDeHeathens; j++){
     pthread_join(_tidHeathens[j], NULL);
-    pthread_join(_tidPrudes[j], NULL);
+    if(j<numeroDePrudes) pthread_join(_tidPrudes[j], NULL);
   }
 
   printf("\nTerminou\n");
