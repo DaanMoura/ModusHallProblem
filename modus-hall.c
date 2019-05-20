@@ -87,7 +87,8 @@ int main()
   char err_msg[MAX];
   int numeroDeHeathens;
   int numeroDePrudes;
-  
+  int i, j;
+
   pthread_t *_tidPrudes;
   pthread_t *_tidHeathens;
   
@@ -122,21 +123,21 @@ int main()
 
   //Criação das threads ("pessoas")
   
+ i = numeroDeHeathens;
+ j = numeroDePrudes;
   while(1) {
-    int i = numeroDeHeathens;
-    int j = numeroDePrudes;
-    if(i-- > 0) pthread_create(&_tidHeathens[i-1], NULL, &heathens, NULL);
-    if(j-- > 0) pthread_create(&_tidPrudes[j-1], NULL, &prudes, NULL);
+    if(i-- > 0) pthread_create(&_tidHeathens[i], NULL, &heathens, NULL);
+    if(j-- > 0) pthread_create(&_tidPrudes[j], NULL, &prudes, NULL);
     
     if(i==0 && j==0) break;
   }
 
   //Espera que todas as threads terminem antes de finalizar o programa 
+  i = numeroDeHeathens;
+  j = numeroDePrudes;
   while(1) {
-    int i = numeroDeHeathens;
-    int j = numeroDePrudes;
-    if(i-- > 0) pthread_join(_tidHeathens[i-1], NULL);
-    if(j-- > 0) pthread_join(_tidPrudes[j-1], NULL);
+    if(i-- > 0) pthread_join(_tidHeathens[i], NULL);
+    if(j-- > 0) pthread_join(_tidPrudes[j], NULL);
     
     if(i==0 && j==0) break;
   }
